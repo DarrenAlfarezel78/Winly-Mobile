@@ -1,7 +1,11 @@
 package com.example.winly.api
 
 import com.example.winly.data.AdminStatsResponse
+import com.example.winly.data.OrganizerDetailResponse
+import com.example.winly.data.OrganizerResponse
 import com.google.gson.annotations.SerializedName
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Call
 import retrofit2.http.*
 
@@ -51,6 +55,11 @@ interface ApiService {
     @GET("admin_dashboard_stats.php")
     suspend fun getAdminDashboardStats(): retrofit2.Response<AdminStatsResponse>
 
+    @GET("get_pending_organizers.php")
+    suspend fun getPendingOrganizers(): retrofit2.Response<OrganizerResponse>
+
+    @GET("get_organizer_detail.php")
+    fun getOrganizerDetail(@Query("id") id: Int): Call<OrganizerDetailResponse>
 
     // 3. VERIFIKASI OTP
     @FormUrlEncoded
@@ -164,5 +173,23 @@ interface ApiService {
         @Field("registration_id") registrationId: Int,
         @Field("status")          status: String,
         @Field("catatan")         catatan: String = ""
+    ): Call<LoginResponse>
+
+
+
+    // 17. VERIFIKASI PENYELENGGARA OLEH ADMIN
+    @FormUrlEncoded
+    @POST("verify_organizer.php")
+    fun verifyOrganizer(
+        @Field("user_id") userId: Int,
+        @Field("action") action: String // Isinya "approve" atau "reject"
+    ): Call<LoginResponse> // Menggunakan LoginResponse karena format kembaliannya sama (status & message)
+
+    @Multipart
+    @POST("upload_document.php")
+    fun uploadDocument(
+        @Part("user_id") userId: RequestBody,
+        @Part("type") type: RequestBody,
+        @Part file: MultipartBody.Part
     ): Call<LoginResponse>
 }

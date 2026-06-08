@@ -22,6 +22,8 @@ import com.example.winly.ui.home.KelolaPendaftarScreen
 import com.example.winly.ui.home.BookmarkScreen
 import com.example.winly.NotificationHelper
 import com.example.winly.ui.admin.AdminDashboardScreen
+import com.example.winly.ui.admin.AdminReviewScreen
+import com.example.winly.ui.admin.AdminVerificationScreen
 import com.example.winly.ui.theme.WinlyTheme
 
 class MainActivity : ComponentActivity() {
@@ -184,6 +186,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        //DASHBOARD ADMIN
                         composable("admin_dashboard") {
                             AdminDashboardScreen(
                                 onLogoutClick = {
@@ -193,9 +196,32 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onVerificationClick = {
-                                    // Nanti buat route "admin_verification_list" di sini
-                                    // navController.navigate("admin_verification_list")
+                                    // Buka halaman list verifikasi
+                                    navController.navigate("admin_verification_list")
                                 }
+                            )
+                        }
+
+                        // --- 2. TAMBAHKAN RUTE BARU TEPAT DI BAWAHNYA ---
+                        composable("admin_verification_list") {
+                            AdminVerificationScreen(
+                                onBack = { navController.popBackStack() },
+                                onReviewClick = { id ->
+                                    // Nanti navigasi ke detail review berdasarkan ID
+                                    navController.navigate("admin_review_detail/$id")
+                                }
+                            )
+                        }
+
+                        // TAMBAHKAN ROUTE BARU INI TEPAT DI BAWAHNYA
+                        composable(
+                            route = "admin_review_detail/{organizerId}",
+                            arguments = listOf(navArgument("organizerId") { type = NavType.IntType })
+                        ) { backStackEntry ->
+                            val id = backStackEntry.arguments?.getInt("organizerId") ?: 0
+                            AdminReviewScreen(
+                                organizerId = id,
+                                onClose = { navController.popBackStack() }
                             )
                         }
 
