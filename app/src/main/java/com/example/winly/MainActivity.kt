@@ -21,6 +21,7 @@ import com.example.winly.ui.home.HomeScreen
 import com.example.winly.ui.home.KelolaPendaftarScreen
 import com.example.winly.ui.home.BookmarkScreen
 import com.example.winly.NotificationHelper
+import com.example.winly.ui.admin.AdminDashboardScreen
 import com.example.winly.ui.theme.WinlyTheme
 
 class MainActivity : ComponentActivity() {
@@ -38,7 +39,8 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
 
                     val startDestination = if (sessionManager.isLoggedIn()) {
-                        "home/${sessionManager.getRole()}"
+                        val role = sessionManager.getRole()
+                        if (role == "admin") "admin_dashboard" else "home/$role"
                     } else {
                         "greeting"
                     }
@@ -66,7 +68,8 @@ class MainActivity : ComponentActivity() {
                                 onForgotPasswordClick = { navController.navigate("forgot_password") },
                                 onRegisterClick = { navController.navigate("register_step_1") },
                                 onLoginSuccess = { role ->
-                                    navController.navigate("home/$role") {
+                                    val destination = if (role == "admin") "admin_dashboard" else "home/$role"
+                                    navController.navigate(destination) {
                                         popUpTo(0) { inclusive = true }
                                     }
                                 }
@@ -178,6 +181,21 @@ class MainActivity : ComponentActivity() {
                                 competitionId = compId,
                                 judulLomba    = judul,
                                 onBack        = { navController.popBackStack() }
+                            )
+                        }
+
+                        composable("admin_dashboard") {
+                            AdminDashboardScreen(
+                                onLogoutClick = {
+                                    sessionManager.clearSession()
+                                    navController.navigate("greeting") {
+                                        popUpTo(0) { inclusive = true }
+                                    }
+                                },
+                                onVerificationClick = {
+                                    // Nanti buat route "admin_verification_list" di sini
+                                    // navController.navigate("admin_verification_list")
+                                }
                             )
                         }
 

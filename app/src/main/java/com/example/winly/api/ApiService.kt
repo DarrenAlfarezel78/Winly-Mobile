@@ -1,5 +1,6 @@
 package com.example.winly.api
 
+import com.example.winly.data.AdminStatsResponse
 import com.google.gson.annotations.SerializedName
 import retrofit2.Call
 import retrofit2.http.*
@@ -45,6 +46,11 @@ interface ApiService {
         @Field("role") role: String,
         @Field("instansi") instansi: String = ""
     ): Call<LoginResponse>
+
+    // Tambahkan ini untuk mengambil data statistik Admin
+    @GET("admin_dashboard_stats.php")
+    suspend fun getAdminDashboardStats(): retrofit2.Response<AdminStatsResponse>
+
 
     // 3. VERIFIKASI OTP
     @FormUrlEncoded
