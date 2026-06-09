@@ -45,6 +45,20 @@ import com.example.winly.data.SessionManager
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.webkit.MimeTypeMap
+import java.io.File
+import java.io.FileOutputStream
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 fun hitungSisaHari(tanggalLomba: String?): String {
     if (tanggalLomba.isNullOrEmpty()) return "Tanggal segera hadir"
@@ -189,9 +203,49 @@ fun ActiveFilterChip(label: String, onRemove: () -> Unit) {
 fun ProfileTab(onLogout: () -> Unit) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
+    val userId = sessionManager.getUserId()
     var showLogoutDialog by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    // State melacak file mana yang sedang diupload
+    var uploadTargetType by remember { mutableStateOf("") } // "ktp" atau "legalitas"
+    var isUploading by remember { mutableStateOf(false) }
+
+    // Launcher Pemilih Dokumen (Mendukung Gambar & PDF)
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            val file = getFileFromUri(context, it)
+            if (file != null) {
+                isUploading = true
+
+                // Konversi data menjadi Multipart data body
+                val requestFile = file.asRequestBody("multipart/form-data".toMediaTypeOrNull())
+                val filePart = MultipartBody.Part.createFormData("file", file.name, requestFile)
+                val userIdBody = userId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+                val typeBody = uploadTargetType.toRequestBody("text/plain".toMediaTypeOrNull())
+
+                RetrofitClient.instance.uploadDocument(userIdBody, typeBody, filePart)
+                    .enqueue(object : Callback<LoginResponse> {
+                        override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
+                            isUploading = false
+                            if (response.body()?.status == "success") {
+                                Toast.makeText(context, "Berhasil mengunggah dokumen $uploadTargetType!", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(context, "Gagal: ${response.body()?.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+
+                        override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
+                            isUploading = false
+                            Toast.makeText(context, "Koneksi gagal: ${t.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    })
+            }
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(modifier = Modifier.height(32.dp))
         Box(modifier = Modifier.size(80.dp).clip(CircleShape).background(Color(0xFF0061D1)), contentAlignment = Alignment.Center) {
             Text(sessionManager.getName().firstOrNull()?.uppercaseChar()?.toString() ?: "U", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
@@ -200,7 +254,9 @@ fun ProfileTab(onLogout: () -> Unit) {
         Text(sessionManager.getName(), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
         Text(sessionManager.getEmail(), fontSize = 13.sp, color = Color.Gray)
         Text(sessionManager.getRole().uppercase(), fontSize = 11.sp, color = Color(0xFF0061D1), fontWeight = FontWeight.Bold)
+
         Spacer(modifier = Modifier.height(24.dp))
+
         Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F9FA))) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 ProfileInfoRow(Icons.Default.Person, "Nama", sessionManager.getName())
@@ -209,7 +265,59 @@ fun ProfileTab(onLogout: () -> Unit) {
                 if (sessionManager.getRole() == "penyelenggara") ProfileInfoRow(Icons.Default.CardGiftcard, "Sisa Kuota", "${sessionManager.getSisaKuota()} lomba gratis")
             }
         }
-        Spacer(modifier = Modifier.weight(1f))
+
+        // 👇 SEKSI BERKAS VERIFIKASI (HANYA MUNCUL UNTUK PENYELENGGARA)
+        if (sessionManager.getRole() == "penyelenggara") {
+            Spacer(modifier = Modifier.height(20.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Dokumen Verifikasi Akun", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black)
+                    Text("Unggah berkas resmi untuk divalidasi oleh Tim Admin.", fontSize = 11.sp, color = Color.Gray)
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (isUploading) {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally), color = Color(0xFF0061D1))
+                    } else {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = {
+                                    uploadTargetType = "ktp"
+                                    filePickerLauncher.launch("image/*") // Mengutamakan gambar kamera untuk KTP
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.UploadFile, null)
+                                Spacer(Modifier.width(4.dp))
+                                Text("Upload KTP", fontSize = 12.sp)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    uploadTargetType = "legalitas"
+                                    filePickerLauncher.launch("*/*") // Mendukung Gambar & Dokumen PDF berkas legalitas
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.CloudUpload, null)
+                                Spacer(Modifier.width(4.dp))
+                                Text("Legalitas (PDF/Img)", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
         OutlinedButton(onClick = { showLogoutDialog = true }, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, Color(0xFFDC2626))) {
             Icon(Icons.AutoMirrored.Filled.Logout, null, tint = Color(0xFFDC2626))
             Spacer(Modifier.width(8.dp))
@@ -256,6 +364,7 @@ fun PenyelenggaraDashboard(
     var isLoading by remember { mutableStateOf(true) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var selectedLombaId by remember { mutableStateOf<Int?>(null) }
+    var isVerified by remember { mutableStateOf(false) }
 
     LaunchedEffect(userId) {
         if (userId > 0) {
@@ -264,6 +373,7 @@ fun PenyelenggaraDashboard(
                     if (response.body()?.status == "success") {
                         sisaKuota = response.body()?.data?.sisaKuota ?: 0
                         sessionManager.updateSisaKuota(sisaKuota)
+                        isVerified = response.body()?.data?.isOrganizerVerified == 1
                     }
                 }
                 override fun onFailure(call: Call<UserResponse>, t: Throwable) {}
@@ -336,10 +446,33 @@ fun PenyelenggaraDashboard(
         }
         item {
             Spacer(modifier = Modifier.height(32.dp))
+
+            // 👇 TAMPILKAN BANNER ORANYE JIKA BELUM TERVERIFIKASI
+            if (!isVerified) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
+                    border = BorderStroke(1.dp, Color(0xFFFFCC80))
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Warning, null, tint = Color(0xFFD97706), modifier = Modifier.size(24.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text("Akun Belum Diverifikasi", fontWeight = FontWeight.Bold, color = Color(0xFFD97706), fontSize = 14.sp)
+                            Text("Silakan ke menu Profile untuk mengunggah KTP dan Dokumen Legalitas agar dapat menambah lomba.", fontSize = 12.sp, color = Color.DarkGray)
+                        }
+                    }
+                }
+            }
+
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Kompetisi Anda", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Button(onClick = onNavigateToCreate, shape = RoundedCornerShape(50.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0061D1)), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), modifier = Modifier.height(36.dp)) {
-                    Text("+ Tambah", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+
+                // 👇 TOMBOL + TAMBAH HANYA MUNCUL JIKA SUDAH TERVERIFIKASI
+                if (isVerified) {
+                    Button(onClick = onNavigateToCreate, shape = RoundedCornerShape(50.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0061D1)), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), modifier = Modifier.height(36.dp)) {
+                        Text("+ Tambah", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -789,5 +922,31 @@ fun DeadlineWidget(onNavigateToPortfolio: () -> Unit = {}) {
                 Text("+${deadlineLomba.size - 2} lomba lainnya", fontSize = 10.sp, color = Color.Gray, modifier = Modifier.padding(start = 18.dp))
             }
         }
+    }
+}
+fun getFileFromUri(context: Context, uri: Uri): File? {
+    return try {
+        val contentResolver = context.contentResolver
+        var fileName = "upload_doc_${System.currentTimeMillis()}.jpg" // Nama default jika gagal ambil nama asli
+
+        // Ambil nama file asli beserta ekstensinya langsung dari HP
+        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (nameIndex != -1 && cursor.moveToFirst()) {
+                fileName = cursor.getString(nameIndex)
+            }
+        }
+
+        val inputStream = contentResolver.openInputStream(uri) ?: return null
+        // Buat file temporary dengan nama asli filenya
+        val tempFile = File(context.cacheDir, fileName)
+        val outputStream = FileOutputStream(tempFile)
+        inputStream.copyTo(outputStream)
+        inputStream.close()
+        outputStream.close()
+        tempFile
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
     }
 }

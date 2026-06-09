@@ -1,5 +1,7 @@
 package com.example.winly.ui.admin
 
+import android.net.Uri
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -11,6 +13,7 @@ import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.HighlightOff
 import androidx.compose.material.icons.filled.PendingActions
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -42,6 +45,7 @@ fun AdminReviewScreen(
     val context = LocalContext.current
     var isLoading by remember { mutableStateOf(false) }
     var organizer by remember { mutableStateOf<OrganizerDetailData?>(null) }
+    val baseUrl = "http://192.168.1.11/winly.api/uploads/"
 
     LaunchedEffect(organizerId) {
         isLoading = true
@@ -145,16 +149,39 @@ fun AdminReviewScreen(
                 Text("Dokumen Legalitas", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                 Spacer(modifier = Modifier.height(8.dp))
                 if (!organizer?.legalitasUrl.isNullOrEmpty()) {
-                    AsyncImage(
-                        model = organizer?.legalitasUrl,
-                        contentDescription = "Dokumen Legalitas",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.LightGray),
-                        contentScale = ContentScale.Crop
-                    )
+
+                    // 👇 INSIGHT 4: Pengecekan file PDF.
+                    // AsyncImage akan error/blank jika dipaksa membaca PDF. Kita harus bedakan UI-nya.
+                    if (organizer!!.legalitasUrl!!.endsWith(".pdf", ignoreCase = true)) {
+                        // Jika PDF, tampilkan tombol buka dokumen
+                        OutlinedButton(
+                            onClick = {
+                                val intent = Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse(baseUrl + organizer!!.legalitasUrl)
+                                )
+                                context.startActivity(intent)
+                            },
+                            modifier = Modifier.fillMaxWidth().height(50.dp)
+                        ) {
+                            Icon(Icons.Default.PictureAsPdf, null, tint = Color.Red)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Buka Dokumen PDF Legalitas", color = Color.Black)
+                        }
+                    } else {
+                        // Jika Gambar (JPG/PNG), tampilkan dengan AsyncImage
+                        AsyncImage(
+                            // 👇 INSIGHT 5: Jangan lupa tambahkan baseUrl sebelum nama file
+                            model = baseUrl + organizer?.legalitasUrl,
+                            contentDescription = "Dokumen Legalitas",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.LightGray),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 } else {
                     Box(modifier = Modifier.fillMaxWidth().height(100.dp).background(Color.LightGray), contentAlignment = Alignment.Center) {
                         Text("Tidak ada dokumen")
@@ -166,16 +193,38 @@ fun AdminReviewScreen(
                 Text("KTP Penanggung Jawab", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                 Spacer(modifier = Modifier.height(8.dp))
                 if (!organizer?.ktpUrl.isNullOrEmpty()) {
-                    AsyncImage(
-                        model = organizer?.ktpUrl,
-                        contentDescription = "KTP",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.LightGray),
-                        contentScale = ContentScale.Crop
-                    )
+
+                    // 👇 INSIGHT 6: Sama seperti legalitas, KTP juga harus dicek apakah bentuknya PDF atau Gambar
+                    if (organizer!!.ktpUrl!!.endsWith(".pdf", ignoreCase = true)) {
+                        OutlinedButton(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(baseUrl + organizer!!.ktpUrl))
+                                context.startActivity(intent)
+                            },
+                            modifier = Modifier.fillMaxWidth().height(50.dp)
+                        ) {
+                            Icon(Icons.Default.PictureAsPdf, null, tint = Color.Red)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Buka Dokumen PDF KTP", color = Color.Black)
+                        }
+                    } else {
+                        AsyncImage(
+                            // 👇 INSIGHT 7: Tambahkan baseUrl di sini juga
+                            model = baseUrl + organizer?.ktpUrl,
+                            contentDescription = "KTP",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.LightGray),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                } else {
+                    // Beri default kotak kosong jika belum upload
+                    Box(modifier = Modifier.fillMaxWidth().height(100.dp).background(Color(0xFFE0E0E0), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                        Text("Tidak ada KTP", color = Color.Gray)
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))

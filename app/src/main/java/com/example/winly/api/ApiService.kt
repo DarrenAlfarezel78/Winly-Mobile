@@ -24,7 +24,8 @@ data class UserInfoData(
     @SerializedName("sisa_kuota")  val sisaKuota: Int? = 0,
     @SerializedName("instansi")    val instansi: String? = null,
     @SerializedName("phone")       val phone: String? = null,
-    @SerializedName("avatar_url")  val avatarUrl: String? = null
+    @SerializedName("avatar_url")  val avatarUrl: String? = null,
+    @SerializedName("is_organizer_verified") val isOrganizerVerified: Int? = 0
 )
 
 // ============================================================
