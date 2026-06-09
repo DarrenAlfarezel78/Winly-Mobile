@@ -45,7 +45,8 @@ fun AdminVerificationScreen(
     }
 
     val filteredList = organizers.filter {
-        it.instansi.contains(searchQuery, ignoreCase = true) || it.name.contains(searchQuery, ignoreCase = true)
+        (it.instansi ?: "").contains(searchQuery, ignoreCase = true) ||
+                (it.name ?: "").contains(searchQuery, ignoreCase = true)
     }
 
     Scaffold(
@@ -122,13 +123,13 @@ fun OrganizerCard(item: OrganizerData, onReviewClick: (Int) -> Unit) {
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(item.instansi, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(item.instansi ?: "Tidak Ada Instansi", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Spacer(Modifier.width(8.dp))
                         Surface(color = Color(0xFFFEF3C7), shape = RoundedCornerShape(4.dp)) {
                             Text("PENDING", color = Color(0xFFD97706), fontSize = 10.sp, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontWeight = FontWeight.Bold)
                         }
                     }
-                    Text("Diajukan: ${item.tanggal}", fontSize = 12.sp, color = Color.Gray)
+                    Text("Diajukan: ${item.tanggal ?: "-"}", fontSize = 12.sp, color = Color.Gray)
                 }
             }
             Spacer(Modifier.height(16.dp))

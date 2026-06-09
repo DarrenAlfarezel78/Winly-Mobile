@@ -45,7 +45,7 @@ fun AdminReviewScreen(
     val context = LocalContext.current
     var isLoading by remember { mutableStateOf(false) }
     var organizer by remember { mutableStateOf<OrganizerDetailData?>(null) }
-    val baseUrl = "http://192.168.1.11/winly.api/uploads/"
+    val baseUrl = "http://192.168.1.4/winly.api/uploads/"
 
     LaunchedEffect(organizerId) {
         isLoading = true
