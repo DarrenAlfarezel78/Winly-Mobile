@@ -88,31 +88,41 @@ class MainActivity : ComponentActivity() {
                                 userRole = role,
                                 onNavigateToCreate = { navController.navigate("create_competition") },
                                 onNavigateToDetail = { id -> navController.navigate("detail_lomba/$id") },
-
-                                // TAMBAHKAN BAGIAN INI DI SINI
                                 onNavigateToKelola = { id, judul ->
                                     val encodedJudul = java.net.URLEncoder.encode(judul, "UTF-8")
                                     navController.navigate("kelola_pendaftar/$id/$encodedJudul")
                                 },
-
                                 onLogout = {
                                     sessionManager.clearSession()
                                     navController.navigate("greeting") {
                                         popUpTo(0) { inclusive = true }
                                     }
-                                }
+                                } // <-- SEHARUSNYA KURUNG INI MENUTUP DISINI
                             )
                         }
 
                         // 5. DETAIL LOMBA
-                        composable(
-                            route = "detail_lomba/{competitionId}",
-                            arguments = listOf(navArgument("competitionId") { type = NavType.IntType })
-                        ) { backStackEntry ->
-                            val id = backStackEntry.arguments?.getInt("competitionId") ?: 0
+                        composable("detail_lomba/{competitionId}") { backStackEntry ->
+                            // Langsung tarik sebagai String dari URL, lalu ubah ke Angka (Int)
+                            val id = backStackEntry.arguments?.getString("competitionId")?.toIntOrNull() ?: 0
+
                             DetailLombaScreen(
                                 competitionId = id,
-                                onBack = { navController.popBackStack() }
+                                onBack = { navController.popBackStack() },
+                                onNavigateToEdit = { compId ->
+                                    navController.navigate("edit_lomba/$compId")
+                                }
+                            )
+                        }
+
+                        // RUTE EDIT LOMBA
+                        composable("edit_lomba/{competitionId}") { backStackEntry ->
+                            val id = backStackEntry.arguments?.getString("competitionId")?.toIntOrNull() ?: 0
+
+                            com.example.winly.ui.home.EditCompetitionScreen(
+                                competitionId = id,
+                                onBack = { navController.popBackStack() },
+                                onUpdateSuccess = { navController.popBackStack() }
                             )
                         }
 
@@ -121,7 +131,6 @@ class MainActivity : ComponentActivity() {
                             RegisterScreen(
                                 onBack = { navController.popBackStack() },
                                 onNext = { username, role, instansi ->
-                                    // Encode instansi supaya aman di URL
                                     val encodedInstansi = java.net.URLEncoder.encode(instansi, "UTF-8")
                                     val encodedUsername = java.net.URLEncoder.encode(username, "UTF-8")
                                     navController.navigate("register_step_2/$encodedUsername/$role/$encodedInstansi")
@@ -186,7 +195,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        //DASHBOARD ADMIN
+                        // DASHBOARD ADMIN
                         composable("admin_dashboard") {
                             AdminDashboardScreen(
                                 onLogoutClick = {
@@ -196,24 +205,22 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onVerificationClick = {
-                                    // Buka halaman list verifikasi
                                     navController.navigate("admin_verification_list")
                                 }
                             )
                         }
 
-                        // --- 2. TAMBAHKAN RUTE BARU TEPAT DI BAWAHNYA ---
+                        // ADMIN VERIFICATION LIST
                         composable("admin_verification_list") {
                             AdminVerificationScreen(
                                 onBack = { navController.popBackStack() },
                                 onReviewClick = { id ->
-                                    // Nanti navigasi ke detail review berdasarkan ID
                                     navController.navigate("admin_review_detail/$id")
                                 }
                             )
                         }
 
-                        // TAMBAHKAN ROUTE BARU INI TEPAT DI BAWAHNYA
+                        // ADMIN REVIEW DETAIL
                         composable(
                             route = "admin_review_detail/{organizerId}",
                             arguments = listOf(navArgument("organizerId") { type = NavType.IntType })

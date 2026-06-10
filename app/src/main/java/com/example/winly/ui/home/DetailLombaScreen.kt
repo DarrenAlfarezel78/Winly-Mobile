@@ -3,6 +3,7 @@ package com.example.winly.ui.home
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -38,7 +39,8 @@ import retrofit2.Response
 @Composable
 fun DetailLombaScreen(
     competitionId: Int,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToEdit: (Int) -> Unit
 ) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
@@ -217,39 +219,84 @@ fun DetailLombaScreen(
                     }
                 }
 
-                // Tombol aksi
-                if (!data.linkPendaftaran.isNullOrEmpty()) {
-                    Button(
+                // PENGECEKAN: Apakah yang melihat halaman ini adalah si Pembuat Lomba?
+                val isOwner = userId.toString() == data.penyelenggaraId
+
+                if (isOwner) {
+                    // ==========================================
+                    // TAMPILAN KHUSUS UNTUK PEMBUAT LOMBA (OWNER)
+                    // ==========================================
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                // 👇 ARAHKAN KE HALAMAN EDIT SAMBIL MEMBAWA ID
+                                onNavigateToEdit(competitionId)
+                            },
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFF0061D1))
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF0061D1))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Edit Lomba", color = Color(0xFF0061D1), fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = {
+                                // TODO: Panggil API Hapus Lomba (Atau munculkan pop-up konfirmasi)
+                                Toast.makeText(context, "Fitur Hapus Lomba segera hadir!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Hapus", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else {
+                    // ==========================================
+                    // TAMPILAN DEFAULT UNTUK PESERTA BUKAN OWNER
+                    // ==========================================
+
+                    // Tombol Daftar (Hanya muncul jika ada link)
+                    if (!data.linkPendaftaran.isNullOrEmpty()) {
+                        Button(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(data.linkPendaftaran))
+                                context.startActivity(intent)
+                            },
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0061D1))
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Daftar Sekarang", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+                    }
+
+                    // Tombol Share
+                    OutlinedButton(
                         onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(data.linkPendaftaran))
-                            context.startActivity(intent)
+                            val shareText = "Cek lomba ini di Winly!\n\n${data.judulLomba}\nKategori: ${data.kategori}\nTanggal: ${data.tanggalPelaksanaan}\n\nDownload Winly sekarang!"
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, shareText)
+                            }
+                            context.startActivity(Intent.createChooser(intent, "Bagikan lomba via"))
                         },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0061D1))
+                        shape = RoundedCornerShape(16.dp)
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                        Icon(Icons.Default.Share, contentDescription = null, tint = Color.Gray)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Daftar Sekarang", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("Bagikan Lomba Ini", color = Color.Black, fontWeight = FontWeight.Bold)
                     }
-                }
-
-                // Tombol share
-                OutlinedButton(
-                    onClick = {
-                        val shareText = "Cek lomba ini di Winly!\n\n${data.judulLomba}\nKategori: ${data.kategori}\nTanggal: ${data.tanggalPelaksanaan}\n\nDownload Winly sekarang!"
-                        val intent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, shareText)
-                        }
-                        context.startActivity(Intent.createChooser(intent, "Bagikan lomba via"))
-                    },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(Icons.Default.Share, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Bagikan Lomba Ini", fontWeight = FontWeight.Bold)
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))

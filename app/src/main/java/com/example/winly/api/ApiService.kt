@@ -193,4 +193,22 @@ interface ApiService {
         @Part("type") type: RequestBody,
         @Part file: MultipartBody.Part
     ): Call<LoginResponse>
+
+    //18.edit competition
+    @FormUrlEncoded
+    @POST("update_competition.php")
+    fun updateCompetition(
+        @Field("id") id: Int,
+        @Field("judul") judul: String,
+        @Field("kategori") kategori: String,
+        @Field("tingkat_pendidikan") tingkatPendidikan: String,
+        @Field("tingkat_lomba") tingkatLomba: String,
+        @Field("deskripsi") deskripsi: String,
+        @Field("link_pendaftaran") linkPendaftaran: String,
+        @Field("link_panduan") linkPanduan: String,
+        @Field("tanggal_pelaksanaan") tanggalPelaksanaan: String,
+        @Field("tanggal_tutup_daftar") tanggalTutupDaftar: String,
+        @Field("biaya_pendaftaran") biayaPendaftaran: Int,
+        @Field("poster_url") posterUrl: String
+    ): Call<LoginResponse> // Kita pakai LoginResponse karena strukturnya sama (status & message)
 }
