@@ -206,11 +206,26 @@ fun ProfileTab(onLogout: () -> Unit) {
     val userId = sessionManager.getUserId()
     var showLogoutDialog by remember { mutableStateOf(false) }
 
-    // State melacak file mana yang sedang diupload
-    var uploadTargetType by remember { mutableStateOf("") } // "ktp" atau "legalitas"
+    var uploadTargetType by remember { mutableStateOf("") }
     var isUploading by remember { mutableStateOf(false) }
 
-    // Launcher Pemilih Dokumen (Mendukung Gambar & PDF)
+    //STATE BARU UNTUK STATUS VERIFIKASI
+    var isVerified by remember { mutableStateOf(false) }
+
+    //AMBIL STATUS VERIFIKASI DARI SERVER SAAT TAB DIBUKA
+    LaunchedEffect(userId) {
+        if (userId > 0) {
+            RetrofitClient.instance.getUserInfo(userId).enqueue(object : Callback<UserResponse> {
+                override fun onResponse(call: Call<UserResponse>, response: Response<UserResponse>) {
+                    if (response.body()?.status == "success") {
+                        isVerified = response.body()?.data?.isOrganizerVerified == 1
+                    }
+                }
+                override fun onFailure(call: Call<UserResponse>, t: Throwable) {}
+            })
+        }
+    }
+
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -219,7 +234,6 @@ fun ProfileTab(onLogout: () -> Unit) {
             if (file != null) {
                 isUploading = true
 
-                // Konversi data menjadi Multipart data body
                 val requestFile = file.asRequestBody("multipart/form-data".toMediaTypeOrNull())
                 val filePart = MultipartBody.Part.createFormData("file", file.name, requestFile)
                 val userIdBody = userId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
@@ -253,7 +267,15 @@ fun ProfileTab(onLogout: () -> Unit) {
         Spacer(modifier = Modifier.height(12.dp))
         Text(sessionManager.getName(), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
         Text(sessionManager.getEmail(), fontSize = 13.sp, color = Color.Gray)
-        Text(sessionManager.getRole().uppercase(), fontSize = 11.sp, color = Color(0xFF0061D1), fontWeight = FontWeight.Bold)
+
+        // Tampilkan Badge Verified kecil di bawah Role
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(sessionManager.getRole().uppercase(), fontSize = 11.sp, color = Color(0xFF0061D1), fontWeight = FontWeight.Bold)
+            if (isVerified) {
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(Icons.Default.Verified, contentDescription = "Verified", tint = Color(0xFF10B981), modifier = Modifier.size(14.dp))
+            }
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -266,50 +288,71 @@ fun ProfileTab(onLogout: () -> Unit) {
             }
         }
 
-        // 👇 SEKSI BERKAS VERIFIKASI (HANYA MUNCUL UNTUK PENYELENGGARA)
+        // 👇 3. LOGIKA PENYEMBUNYIAN FORM UPLOAD
         if (sessionManager.getRole() == "penyelenggara") {
             Spacer(modifier = Modifier.height(20.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFE0E0E0))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Dokumen Verifikasi Akun", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black)
-                    Text("Unggah berkas resmi untuk divalidasi oleh Tim Admin.", fontSize = 11.sp, color = Color.Gray)
 
-                    Spacer(modifier = Modifier.height(16.dp))
+            if (!isVerified) {
+                // JIKA BELUM VERIFIKASI -> TAMPILKAN FORM UPLOAD DOKUMEN
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Dokumen Verifikasi Akun", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black)
+                        Text("Unggah berkas resmi untuk divalidasi oleh Tim Admin.", fontSize = 11.sp, color = Color.Gray)
 
-                    if (isUploading) {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally), color = Color(0xFF0061D1))
-                    } else {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(
-                                onClick = {
-                                    uploadTargetType = "ktp"
-                                    filePickerLauncher.launch("image/*") // Mengutamakan gambar kamera untuk KTP
-                                },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(Icons.Default.UploadFile, null)
-                                Spacer(Modifier.width(4.dp))
-                                Text("Upload KTP", fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (isUploading) {
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally), color = Color(0xFF0061D1))
+                        } else {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(
+                                    onClick = {
+                                        uploadTargetType = "ktp"
+                                        filePickerLauncher.launch("image/*")
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Default.UploadFile, null)
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Upload KTP", fontSize = 12.sp)
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
+                                        uploadTargetType = "legalitas"
+                                        filePickerLauncher.launch("*/*")
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Default.CloudUpload, null)
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Legalitas", fontSize = 12.sp)
+                                }
                             }
-
-                            OutlinedButton(
-                                onClick = {
-                                    uploadTargetType = "legalitas"
-                                    filePickerLauncher.launch("*/*") // Mendukung Gambar & Dokumen PDF berkas legalitas
-                                },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(Icons.Default.CloudUpload, null)
-                                Spacer(Modifier.width(4.dp))
-                                Text("Legalitas (PDF/Img)", fontSize = 12.sp)
-                            }
+                        }
+                    }
+                }
+            } else {
+                // JIKA SUDAH VERIFIKASI -> TAMPILKAN BANNER HIJAU
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5)), // Hijau pudar
+                    border = BorderStroke(1.dp, Color(0xFF10B981)) // Hijau terang
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Verified, null, tint = Color(0xFF10B981), modifier = Modifier.size(28.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text("Akun Penyelenggara Resmi", fontWeight = FontWeight.Bold, color = Color(0xFF065F46), fontSize = 14.sp)
+                            Text("Kamu sudah memiliki akses penuh untuk menerbitkan perlombaan.", fontSize = 12.sp, color = Color(0xFF064E3B))
                         }
                     }
                 }
@@ -336,7 +379,6 @@ fun ProfileTab(onLogout: () -> Unit) {
         )
     }
 }
-
 @Composable
 fun ProfileInfoRow(icon: ImageVector, label: String, value: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {

@@ -128,6 +128,8 @@ fun CreateCompetitionScreen(onBack: () -> Unit, onUploadSuccess: () -> Unit) {
     var linkPendaftaran by remember { mutableStateOf("") }
     var linkJuknis by remember { mutableStateOf("") }
     var isWilayahDropdownExpanded by remember { mutableStateOf(false) }
+    var isKategoriDropdownExpanded by remember { mutableStateOf(false) }
+    val listKategori = listOf("Teknologi & IT", "Sains & Matematika", "Ekonomi & Bisnis", "Karya Tulis & Riset", "Seni & Desain", "Soshum & Hukum")
 
     val calendar = Calendar.getInstance()
 
@@ -313,6 +315,35 @@ fun CreateCompetitionScreen(onBack: () -> Unit, onUploadSuccess: () -> Unit) {
                 label = { Text("Judul Perlombaan *") },
                 modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), singleLine = true
             )
+            //kategori lomba
+            Column {
+                Text("Kategori Lomba *", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                Spacer(modifier = Modifier.height(8.dp))
+                ExposedDropdownMenuBox(
+                    expanded = isKategoriDropdownExpanded,
+                    onExpandedChange = { isKategoriDropdownExpanded = !isKategoriDropdownExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = kategori, onValueChange = {}, readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isKategoriDropdownExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth(), shape = RoundedCornerShape(12.dp)
+                    )
+                    ExposedDropdownMenu(
+                        expanded = isKategoriDropdownExpanded,
+                        onDismissRequest = { isKategoriDropdownExpanded = false }
+                    ) {
+                        listKategori.forEach { kat ->
+                            DropdownMenuItem(
+                                text = { Text(kat) },
+                                onClick = {
+                                    kategori = kat
+                                    isKategoriDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
 
             // Tingkat Pendidikan
             Column {
